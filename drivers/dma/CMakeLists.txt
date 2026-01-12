@@ -1,0 +1,13 @@
+nexus_add_static_module(nexus_driver_dma
+    SOURCES
+        src/dma_core.c
+    PUBLIC_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    PUBLIC_DEPS
+        nexus_kernel_api
+        nexus_bsp_public
+    PRIVATE_DEPS
+        nexus_project_options
+)

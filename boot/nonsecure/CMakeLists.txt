@@ -1,0 +1,17 @@
+nexus_add_static_module(nexus_boot_nonsecure
+    SOURCES
+        src/startup_ns.S
+        src/nonsecure_entry.c
+        src/vector_table_ns.c
+    PUBLIC_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    PUBLIC_DEPS
+        nexus_arch
+        nexus_bsp
+    PRIVATE_DEPS
+        nexus_project_options
+    COMPILE_DEFINITIONS
+        NEXUS_WORLD_NONSECURE=1
+)

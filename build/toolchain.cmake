@@ -1,0 +1,22 @@
+# Bare-metal GNU Arm Embedded toolchain file.
+#
+# Configure example:
+#   cmake -S . -B build/mps2_an505/Debug     #         -DCMAKE_TOOLCHAIN_FILE=build/toolchain.cmake     #         -DNEXUS_BOARD=mps2_an505     #         -DCMAKE_BUILD_TYPE=Debug
+
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_PROCESSOR arm)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+
+set(TOOLCHAIN_PREFIX arm-none-eabi)
+set(CMAKE_C_COMPILER   ${TOOLCHAIN_PREFIX}-gcc)
+set(CMAKE_CXX_COMPILER ${TOOLCHAIN_PREFIX}-g++)
+set(CMAKE_ASM_COMPILER ${TOOLCHAIN_PREFIX}-gcc)
+set(CMAKE_AR           ${TOOLCHAIN_PREFIX}-ar)
+set(CMAKE_OBJCOPY      ${TOOLCHAIN_PREFIX}-objcopy CACHE INTERNAL "objcopy tool")
+set(CMAKE_OBJDUMP      ${TOOLCHAIN_PREFIX}-objdump CACHE INTERNAL "objdump tool")
+set(CMAKE_SIZE         ${TOOLCHAIN_PREFIX}-size    CACHE INTERNAL "size tool")
+
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)

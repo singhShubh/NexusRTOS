@@ -1,0 +1,13 @@
+nexus_add_static_module(nexus_service_audio
+    SOURCES
+        src/audio_service.c
+    PUBLIC_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    PUBLIC_DEPS
+        nexus_kernel_api
+        nexus_drivers
+    PRIVATE_DEPS
+        nexus_project_options
+)

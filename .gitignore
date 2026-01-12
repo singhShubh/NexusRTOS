@@ -1,0 +1,20 @@
+# --------------------------------------------------------------------------------------
+# Build tree (type aware layout)
+# --------------------------------------------------------------------------------------
+# Ignore everything under build/
+build/*
+# but keep the portable helper scripts/toolchain in VCS
+!build/toolchain.cmake
+!build/install_toolchain.sh
+!build/setup.sh
+!build/cmake/
+!build/cmake/*.cmake
+
+# --------------------------------------------------------------------------------------
+# CMake intermediate files (should not be in source root)
+# --------------------------------------------------------------------------------------
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json

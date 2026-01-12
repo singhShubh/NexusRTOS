@@ -1,0 +1,12 @@
+set(NEXUS_ARCH_COMMON_COMPILE_FLAGS
+    -mcpu=cortex-m33
+    -mthumb
+)
+set(NEXUS_ARCH_SECURE_COMPILE_FLAGS
+    -mcpu=cortex-m33
+    -mthumb
+)
+set(NEXUS_ARCH_NONSECURE_COMPILE_FLAGS
+    -mcpu=cortex-m33
+    -mthumb
+)

@@ -1,0 +1,12 @@
+nexus_add_static_module(nexus_security
+    SOURCES
+        src/secure_services.c
+    PUBLIC_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    PRIVATE_DEPS
+        nexus_project_options
+    COMPILE_DEFINITIONS
+        NEXUS_WORLD_SECURE=1
+)

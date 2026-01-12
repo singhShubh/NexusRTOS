@@ -1,0 +1,17 @@
+nexus_add_static_module(nexus_arch_cortex_m33_secure
+    SOURCES
+        src/interrupt_target_init.c
+    PUBLIC_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    PUBLIC_DEPS
+        nexus_project_options
+    PRIVATE_DEPS
+        nexus_project_options
+    COMPILE_DEFINITIONS
+        NEXUS_WORLD_SECURE=1
+    COMPILE_OPTIONS
+        ${NEXUS_ARCH_SECURE_COMPILE_FLAGS}
+        -mcmse
+)

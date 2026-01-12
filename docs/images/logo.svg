@@ -1,0 +1,42 @@
+<svg width="280" height="70" viewBox="0 0 315 80"  fill="none"
+     xmlns="http://www.w3.org/2000/svg" class="glow-effect">
+  <defs>
+    <linearGradient id="cyberGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0ABDC6;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#EA00D9;stop-opacity:1"/>
+    </linearGradient>
+
+    <!-- Glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="rgba(10,189,198,0.6)"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="3.5" flood-color="rgba(234,0,217,0.4)"/>
+    </filter>
+  </defs>
+
+  <style>
+    .glow-effect { filter: url(#glow); }
+  </style>
+
+  <!-- Move/scale the WHOLE logo by changing this single transform -->
+  <g id="logo" transform="translate(10,-10)">
+    <!-- Icon path: local baseline at y=50 -->
+    <path d="M10 50 H30 L45 20 L60 80 L75 50 H95"
+          stroke="url(#cyberGrad)" stroke-width="5"
+          stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Wordmark block is positioned RELATIVE to the path end -->
+    <g id="wordmark" transform="translate(110,0)">
+      <!-- Align both texts to a shared baseline (y=60) -->
+      <text x="0"   y="60"
+            font-family="'Space Mono', monospace"
+            font-weight="700" font-size="38"
+            fill="#0ABDC6" letter-spacing="-1">Nexus</text>
+
+      <!-- Start second word at the natural end of the first word -->
+      <text x="100" y="60"
+            font-family="'Space Mono', monospace"
+            font-weight="400" font-size="38"
+            fill="#EA00D9" letter-spacing="-1">RTOS</text>
+    </g>
+  </g>
+</svg>
