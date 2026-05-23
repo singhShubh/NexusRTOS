@@ -1,187 +1,182 @@
 # NexusRTOS Build Infrastructure
 
-This document explains the current build model, command flows, and board/architecture selection logic.
+This document describes the current build model, module composition, and troubleshooting flow.
 
-For board onboarding details, see `docs/BOARD_PORTING.md`.
-For boot handoff and early initialization sequence, see `docs/BOOT_FLOW.md`.
-For manual BSP config examples, see `docs/CMAKE_CONFIGURE_TUTORIAL.md`.
+Related docs:
+- `docs/BOARD_PORTING.md`
 
 ## 1. Build system overview
 
-The root build is CMake-based and configured as a bare-metal cross build:
+The project uses CMake for a bare-metal cross build.
 
-- Toolchain file: `build/toolchain.cmake`
+Core files:
 - Root entry: `CMakeLists.txt`
-- Board loader: `build/cmake/BoardConfig.cmake`
-- Helper script: `tools/nx.py`
+- Toolchain files: `build/cmake/toolchain_<arch>.cmake`
+  - current: `toolchain_arm.cmake`, `toolchain_riscv.cmake`
+- Board loader helpers: `build/cmake/BoardConfig.cmake`
+- Target helper functions: `build/cmake/NexusModule.cmake`
+- CLI wrapper: `tools/nx.py`
 
-The final image target is:
-
+Final target artifacts:
 - `nexus_<board>.elf`
-- map file: `nexus_<board>.map`
+- `nexus_<board>.map`
+- `nexus_<board>_secure.bin`
+- `nexus_<board>_nonsecure.bin`
 
-Output location:
-
+Artifact location:
 - `build/<board>/<BuildType>/artifacts/`
 
-## 2. Board selection and derived architecture paths
+## 2. Build invariants enforced by CMake
 
-Board selection is performed with `-DNEXUS_BOARD=<board>`.
+The root build enforces:
+1. Out-of-source builds only.
+2. Board-specific build directories only (`build/<board>/<BuildType>`).
+3. Explicit board selection with `-DNEXUS_BOARD=<board>`.
 
-The board entry file `bsp/<board>/config/<board>.cmake` defines CPU/arch constants and the
-board config paths used by the root build.
+If `NEXUS_BOARD` is missing or unknown, configure fails with available board names.
 
-Current convention:
+## 3. Board selection and derived architecture paths
 
-- `NEXUS_BOARD_LINKER_SCRIPT` points directly to `bsp/<board>/config/linker_unified.ld`.
-- `NEXUS_BOARD_INCLUDE_DIRS` includes board public headers plus `bsp/<board>/config`.
-- IRQ policy table source is maintained manually at `bsp/<board>/config/board_irq_table.c`
-  and compiled directly by the board secure module.
+Board discovery and loading use:
+- `bsp_config/<board>/<board>.cmake`
 
-Variables checked by `nexus_load_board()` after the board file runs:
-
-- `NEXUS_BOARD_ARCH` (example: `arm`)
-- `NEXUS_BOARD_CPU` (example: `cortex-m33`)
+Required board variables:
+- `NEXUS_BOARD_ARCH`
+- `NEXUS_BOARD_CPU`
 - `NEXUS_BOARD_CPU_FLAGS`
 - `NEXUS_BOARD_LINKER_SCRIPT`
 - `NEXUS_BOARD_INCLUDE_DIRS`
 
-From these variables, the loader derives:
+Optional board variable:
+- `NEXUS_BOARD_ENABLE_SECURE_WORLD` (`ON`/`OFF`)
+  - If omitted, CMake auto-detects secure build enablement from board secure files.
 
-- `NEXUS_BOARD_ARCH_DIR = arch/${NEXUS_BOARD_ARCH}/${NEXUS_BOARD_CPU}`
+Derived by `nexus_load_board()`:
+- `NEXUS_BOARD_ARCH_COMMON_DIR = os/arch/${NEXUS_BOARD_ARCH}/common`
+- `NEXUS_BOARD_ARCH_DIR = os/arch/${NEXUS_BOARD_ARCH}/${NEXUS_BOARD_CPU}`
+- `NEXUS_BOARD_SECURE_ARCH_DIR = secure/arch/${NEXUS_BOARD_ARCH}/${NEXUS_BOARD_CPU}`
 - `NEXUS_BOARD_ARCH_CONFIG = ${CMAKE_SOURCE_DIR}/${NEXUS_BOARD_ARCH_DIR}/arch.cmake`
 
-The root build includes `${NEXUS_BOARD_ARCH_CONFIG}` and adds `${NEXUS_BOARD_ARCH_DIR}` with `add_subdirectory(...)`.
+Path usage:
+- Root `CMakeLists.txt` adds `${NEXUS_BOARD_ARCH_COMMON_DIR}` and `${NEXUS_BOARD_ARCH_DIR}`.
+- `secure/CMakeLists.txt` adds `${NEXUS_BOARD_SECURE_ARCH_DIR}`.
 
-## 3. Module composition and link model
+## 4. Module graph and link model
 
-The executable links high-level aggregators rather than every leaf source directly:
-
+The root executable links high-level aggregators:
 - `nexus_bsp`
 - `nexus_drivers`
-- `nexus_services`
 - `nexus_arch_common`
 - `nexus_arch`
-- `nexus_security`
 - `nexus_boot`
+- `nexus_secure`
 - `nexus_kernel_impl`
 - `nexus_app`
 
-Leaf modules use `nexus_add_static_module(...)` or `nexus_add_interface_module(...)` from `build/cmake/NexusModule.cmake`.
+Public-facing dependency targets used by higher layers:
+- `nexus_kernel` (app/drivers-facing kernel target)
+- `nexus_bsp_public`
 
-## 3.1 Public vs private headers
+Leaf module construction uses:
+- `nexus_add_static_module(...)`
+- `nexus_add_interface_module(...)`
 
-Header visibility is split intentionally:
+Both are defined in `build/cmake/NexusModule.cmake`.
 
-- Public headers are exported through `PUBLIC_INCLUDE_DIRS` (or interface include dirs) and are part of the module API.
-- Private headers are added through `PRIVATE_INCLUDE_DIRS` and are visible only while compiling that module.
+## 5. Public vs private header model
 
-Current BSP convention:
+Header visibility is controlled through CMake target usage requirements:
+- `PUBLIC_INCLUDE_DIRS` for exported API headers.
+- `PRIVATE_INCLUDE_DIRS` for module-local headers.
+- Project-wide neutral headers: `include/` (via `nexus_common_headers`, linked by `nexus_project_options`).
 
-- Public board headers: `bsp/<board>/include` (for example `board.h`).
-- Private board headers: `bsp/<board>/inc` (for example `board_private.h`).
+BSP convention:
+- Private board headers: board-local headers under `bsp/<board>/src`
+- Shared board config headers: `bsp_config/common/include` (via `NEXUS_BOARD_INCLUDE_DIRS`)
+- Board-specific config and public board headers: `bsp_config/<board>` (via `NEXUS_BOARD_INCLUDE_DIRS`)
 
-Typical board module pattern:
+## 6. Secure vs non-secure source placement
 
-```cmake
-nexus_add_interface_module(nexus_bsp_public
-  PUBLIC_INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
+Current source split is mostly directory-based:
+- Non-secure/runtime code lives under `os/`, `drivers/`, and `app/`.
+- Secure framework code lives under `secure/`.
+- Non-secure BSP code lives under `bsp/<board>/`; secure BSP code lives under `secure/bsp/<board>/`.
 
-nexus_add_static_module(nexus_bsp_<board>_secure
-  SOURCES
-    ...
-  PRIVATE_INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/inc
-    ${CMAKE_CURRENT_SOURCE_DIR}/secure/src
-  PUBLIC_DEPS
-    nexus_bsp_public
-)
-```
+BSP split:
+- `nexus_secure_bsp_<board>` owns secure board sources.
+- `nexus_bsp_<board>_nonsecure` owns non-secure board sources.
 
-Note: board common headers under `bsp/common/include` are injected via
-`NEXUS_BOARD_INCLUDE_DIRS` into `nexus_project_options` and therefore become visible to modules that depend on `nexus_project_options`.
+Boot split:
+- Non-secure boot module: `os/boot`
+- Secure boot module: `secure/boot`
 
-## 4. Secure/non-secure linker routing policy
+Architecture split:
+- Non-secure arch module: `os/arch/<arch>/<cpu>`
+- Secure arch module: `secure/arch/<arch>/<cpu>`
 
-The linker scripts now route secure and non-secure placement by archive target identity, not by source filename text.
+## 7. Linker routing policy
 
-Secure sections pull from secure-target archives such as:
+World routing is archive-target driven (not filename-substring driven).
 
-- `libnexus_boot_secure.a`
-- `libnexus_security.a`
-- `libnexus_arch_*_secure.a`
-- `libnexus_bsp_*_secure.a`
-- `libnexus_app_secure.a`
+Typical secure archive set:
+- `libnexus_secure_boot.a`
+- `libnexus_secure_services.a`
+- `libnexus_secure_arch_*.a`
+- `libnexus_secure_bsp_*.a`
 
-Non-secure sections include general sections while excluding those secure archives via `EXCLUDE_FILE(...)`.
+Non-secure output sections are selected with `EXCLUDE_FILE(...)` against the secure archive set.
 
-Why this is used:
+## 8. Commands
 
-1. Avoids false matches from filenames that contain "secure".
-2. Keeps world routing aligned with CMake target boundaries.
-3. Requires no per-function/per-variable section annotations.
-
-## 5. Build commands
-
-### Recommended helper commands
+Recommended:
 
 ```bash
 python3 tools/nx.py list-boards
 python3 tools/nx.py build --board mps2_an505 --type debug
 python3 tools/nx.py build --board portenta_c33 --type release
+python3 tools/nx.py flash-image --board mps2_an505 --type debug
 python3 tools/nx.py clean --board mps2_an505 --type debug
-python3 tools/nx.py clean --board mps2_an505
 python3 tools/nx.py clean --all
 ```
 
-### Equivalent direct CMake invocation
+Equivalent direct CMake flow:
 
 ```bash
 cmake -S . -B build/mps2_an505/Debug \
-  -DCMAKE_TOOLCHAIN_FILE=build/toolchain.cmake \
+  -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchain_arm.cmake \
   -DNEXUS_BOARD=mps2_an505 \
   -DCMAKE_BUILD_TYPE=Debug
 
 cmake --build build/mps2_an505/Debug -j
 ```
 
-## 6. Notes on scaffold mode
+## 9. Scaffold-mode note
 
-Most runtime files are still scaffold placeholders. To keep linking possible in this phase, the build can inject dummy generated sources with:
-
-- option: `NEXUS_ENABLE_DUMMY_LINK` (default `ON`)
+`NEXUS_ENABLE_DUMMY_LINK` (default `ON`) allows generated stub sources so the scaffold remains linkable:
 - generator: `build/cmake/NexusDummySources.cmake`
 
-Current board linker entry behavior in this scaffold:
+Current entry behavior:
+- `mps2_an505`: uses board startup symbol from `secure/bsp/mps2_an505/src/startup.S`.
+- `portenta_c33`: currently uses generated `nexus_dummy_entry`.
 
-- `mps2_an505`: linker entry is `reset_handler_s` from `bsp/mps2_an505/secure/src/startup.S`.
-- `portenta_c33`: linker entry is `nexus_dummy_entry` while board startup wiring is still being scaffolded.
+## 10. Troubleshooting
 
-## 7. Troubleshooting quick checks
+Configure fails:
+1. Run `python3 tools/nx.py list-boards`.
+2. Verify `bsp_config/<board>/<board>.cmake` exists and defines required vars.
+3. Verify `os/arch/<arch>/<cpu>/arch.cmake` exists for selected board.
 
-If configure fails:
+Link fails at reset/entry:
+1. Check `ENTRY(...)` in `bsp_config/<board>/linker_unified.ld`.
+2. Check `secure/bsp/<board>/src/startup.S` symbol names.
+3. Check handoff symbol `nexus_boot_reset_entry` in `secure/boot/src/reset_entry.c`.
 
-1. Verify board name via `python3 tools/nx.py list-boards`.
-2. Verify `bsp/<board>/config/<board>.cmake` sets `NEXUS_BOARD_LINKER_SCRIPT`.
-3. Verify `bsp/<board>/config/<board>.cmake` sets `NEXUS_BOARD_INCLUDE_DIRS` and includes `bsp/<board>/config`.
-4. Verify derived path `arch/<arch>/<cpu>/arch.cmake` exists.
+World placement looks wrong:
+1. Check secure archive lists in linker script.
+2. Check non-secure `EXCLUDE_FILE(...)` rules.
+3. Inspect map file in `build/<board>/<BuildType>/artifacts/`.
 
-If link fails with reset/entry symbols:
-
-1. Check linker script `ENTRY(...)` in `bsp/<board>/config/linker_unified.ld`.
-2. Check board startup symbol definitions in `bsp/<board>/secure/src/startup.S`.
-3. Check boot handoff symbol `nexus_boot_reset_entry` is reachable from boot secure target.
-
-If secure/non-secure placement is wrong:
-
-1. Check secure archive selectors in `bsp/<board>/config/linker_unified.ld`.
-2. Check `EXCLUDE_FILE(...)` list for non-secure sections matches secure archives.
-3. Confirm map file placement in `build/<board>/<BuildType>/artifacts/nexus_<board>.map`.
-
-If an IRQ is routing to the wrong world:
-
-1. Edit the relevant entry in `bsp/<board>/config/board_irq_table.c`.
-2. Verify the count in `bsp/<board>/config/board_irq_map.h` still matches table length.
-3. Rebuild and confirm expected behavior.
+IRQ world/priority behavior is wrong:
+1. Edit `NEXUS_BOARD_IRQ_TABLE(ENTRY)` in `bsp_config/<board>/interrupt_map.h`.
+2. Keep `NEXUS_BOARD_IRQ_COUNT` in `interrupt_map.h` in sync.
+3. Rebuild; `bsp/common/src/board_irq_table.c` compiles the shared table from the macro.

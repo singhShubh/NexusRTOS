@@ -1,3 +1,4 @@
+# Timer driver implementation module.
 nexus_add_static_module(nexus_driver_timer
     SOURCES
         src/timer_core.c
@@ -6,7 +7,7 @@ nexus_add_static_module(nexus_driver_timer
     PRIVATE_INCLUDE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     PUBLIC_DEPS
-        nexus_kernel_api
+        nexus_kernel
         nexus_bsp_public
     PRIVATE_DEPS
         nexus_project_options

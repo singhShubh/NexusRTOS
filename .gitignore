@@ -3,8 +3,7 @@
 # --------------------------------------------------------------------------------------
 # Ignore everything under build/
 build/*
-# but keep the portable helper scripts/toolchain in VCS
-!build/toolchain.cmake
+# but keep the portable helper scripts and CMake modules in VCS
 !build/install_toolchain.sh
 !build/setup.sh
 !build/cmake/
@@ -18,3 +17,6 @@ CMakeFiles/
 cmake_install.cmake
 Makefile
 compile_commands.json
+
+# Python cache
+tools/__pycache__/

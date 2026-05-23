@@ -1,8 +1,15 @@
-add_subdirectory(secure)
-add_subdirectory(nonsecure)
-
-add_library(nexus_app INTERFACE)
-target_link_libraries(nexus_app INTERFACE
-    nexus_app_secure
-    nexus_app_nonsecure
+# Application module.
+nexus_add_static_module(nexus_app
+    SOURCES
+        src/main.c
+    PUBLIC_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    PUBLIC_DEPS
+        nexus_kernel
+    PRIVATE_DEPS
+        nexus_project_options
+    COMPILE_DEFINITIONS
+        NEXUS_WORLD_NONSECURE=1
 )

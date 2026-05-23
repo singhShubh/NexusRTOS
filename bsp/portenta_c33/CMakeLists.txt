@@ -1,6 +1,4 @@
-include(${CMAKE_SOURCE_DIR}/build/cmake/NexusModule.cmake)
-
-# Public board face: only exported board constants.
+# Public board interface exposed to dependent modules.
 nexus_add_interface_module(nexus_bsp_public
     PUBLIC_INCLUDE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -8,29 +6,17 @@ nexus_add_interface_module(nexus_bsp_public
         nexus_project_options
 )
 
-# Board-private secure implementation.
-nexus_add_static_module(nexus_bsp_portenta_c33_secure
-    SOURCES
-        secure/src/board_early_init.c
-        config/board_irq_table.c
-    PRIVATE_INCLUDE_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}/inc
-        ${CMAKE_CURRENT_SOURCE_DIR}/secure/src
-    PUBLIC_DEPS
-        nexus_bsp_public
-    PRIVATE_DEPS
-        nexus_project_options
-    COMPILE_DEFINITIONS
-        NEXUS_WORLD_SECURE=1
+# Non-secure BSP implementation sources.
+set(NEXUS_BSP_PORTENTA_C33_NONSECURE_SOURCES
+    src/board_nonsecure.c
 )
 
-# Board-private non-secure implementation.
+# Board-specific non-secure implementation module.
 nexus_add_static_module(nexus_bsp_portenta_c33_nonsecure
     SOURCES
-        nonsecure/src/board_nonsecure.c
+        ${NEXUS_BSP_PORTENTA_C33_NONSECURE_SOURCES}
     PRIVATE_INCLUDE_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}/inc
-        ${CMAKE_CURRENT_SOURCE_DIR}/nonsecure/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
     PUBLIC_DEPS
         nexus_bsp_public
     PRIVATE_DEPS
@@ -39,9 +25,9 @@ nexus_add_static_module(nexus_bsp_portenta_c33_nonsecure
         NEXUS_WORLD_NONSECURE=1
 )
 
+# Unified non-secure BSP dependency target consumed by top-level build targets.
 add_library(nexus_bsp INTERFACE)
 target_link_libraries(nexus_bsp INTERFACE
     nexus_bsp_public
-    nexus_bsp_portenta_c33_secure
     nexus_bsp_portenta_c33_nonsecure
 )

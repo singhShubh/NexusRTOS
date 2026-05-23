@@ -1,6 +1,6 @@
 include(CMakeParseArguments)
 
-# Leaf static module with explicit public/private headers and deps.
+# Add a static implementation module with explicit includes, dependencies, and options.
 function(nexus_add_static_module target)
     set(options)
     set(oneValueArgs)
@@ -34,7 +34,7 @@ function(nexus_add_static_module target)
     endif()
 endfunction()
 
-# Pure interface/API module used to export public include dirs and transitive dependencies.
+# Add an interface/API module for exported includes and transitive dependencies.
 function(nexus_add_interface_module target)
     set(options)
     set(oneValueArgs)
